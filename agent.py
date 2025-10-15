@@ -18,23 +18,8 @@ class Agent:
         self.system_message = "You are a helpful assistant that breaks down problems into steps and solves them systematically."
         self.messages = []
         self.tools = tools
-        self.tool_map = {tool.get_schema()["name"]: tool for tool in tools}
-
-    def _get_tool_schemas(self):
-        """Get tool schemas for all registered tools in OpenAI format"""
-        openai_tools = []
-        for tool in self.tools:
-            anthropic_schema = tool.get_schema()
-            openai_tool = {
-                "type": "function",
-                "function": {
-                    "name": anthropic_schema["name"],
-                    "description": anthropic_schema["description"],
-                    "parameters": anthropic_schema["input_schema"]
-                }
-            }
-            openai_tools.append(openai_tool)
-        return openai_tools
+        self.tool_map = {tool.get_schema()["function"]["name"]: tool for tool in tools}
+        self.tool_schemas = [tool.get_schema() for tool in tools]
 
     def chat(self, message):
         """Process a user message and return a response"""
@@ -53,7 +38,7 @@ class Agent:
         response = self.client.chat.completions.create(
             model=self.model,
             max_tokens=1024,
-            tools=self._get_tool_schemas() if self.tools else None,
+            tools=self.tool_schemas if self.tools else None,
             messages=messages_with_system,
             temperature=0.1,
         )
@@ -74,17 +59,20 @@ class CalculatorTool():
 
     def get_schema(self):
         return {
-            "name": "calculator",
-            "description": "Performs basic mathematical calculations, use also for simple additions",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "expression": {
-                        "type": "string",
-                        "description": "Mathematical expression to evaluate (e.g., '2+2', '10*5')"
-                    }
-                },
-                "required": ["expression"]
+            "type": "function",
+            "function": {
+                "name": "calculator",
+                "description": "Performs basic mathematical calculations, use also for simple additions",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "expression": {
+                            "type": "string",
+                            "description": "Mathematical expression to evaluate (e.g., '2+2', '10*5')"
+                        }
+                    },
+                    "required": ["expression"]
+                }
             }
         }
 
